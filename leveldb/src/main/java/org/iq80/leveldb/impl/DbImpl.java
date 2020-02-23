@@ -471,13 +471,13 @@ public class DbImpl
                     new InternalKey(manualCompaction.end, 0, DELETION));
         }
         else {
-            compaction = versions.pickCompaction();
+            compaction = versions.pickCompaction(); // pick level, level+1, level+2 overlapping files
         }
 
         if (compaction == null) {
             // no compaction
         }
-        else if (manualCompaction == null && compaction.isTrivialMove()) {
+        else if (manualCompaction == null && compaction.isTrivialMove()) {  // just move without merging or splitting
             // Move file to next level
             checkState(compaction.getLevelInputs().size() == 1);
             FileMetaData fileMetaData = compaction.getLevelInputs().get(0);
@@ -588,15 +588,16 @@ public class DbImpl
             SnapshotImpl snapshot = getSnapshot(options);
             lookupKey = new LookupKey(Slices.wrappedBuffer(key), snapshot.getLastSequence());
 
-            // First look in the memtable, then in the immutable memtable (if any).
+            // First look in the memtable
             LookupResult lookupResult = memTable.get(lookupKey);
-            if (lookupResult != null) {
+            if (lookupResult != null) { // if lookupResult != null, then the result must be certain
                 Slice value = lookupResult.getValue();
-                if (value == null) {
+                if (value == null) {    // means the key is deleted, so return null
                     return null;
                 }
                 return value.getBytes();
             }
+            // Then in the immutable memtable (if any).
             if (immutableMemTable != null) {
                 lookupResult = immutableMemTable.get(lookupKey);
                 if (lookupResult != null) {
@@ -697,7 +698,7 @@ public class DbImpl
                 // Log write
                 Slice record = writeWriteBatch(updates, sequenceBegin);
                 try {
-                    log.addRecord(record, options.sync());
+                    log.addRecord(record, options.sync());  // todo 有个问题：预写日志的过程如果被中断了，会发生什么？
                 }
                 catch (IOException e) {
                     throw Throwables.propagate(e);
@@ -951,7 +952,7 @@ public class DbImpl
         mutex.unlock();
         FileMetaData meta;
         try {
-            meta = buildTable(mem, fileNumber);
+            meta = buildTable(mem, fileNumber); // indeed write
         }
         finally {
             mutex.lock();
@@ -985,7 +986,7 @@ public class DbImpl
                 for (Entry<InternalKey, Slice> entry : data) {
                     // update keys
                     InternalKey key = entry.getKey();
-                    if (smallest == null) {
+                    if (smallest == null) { // smallest is the first element in data (for ordering structure)
                         smallest = key;
                     }
                     largest = key;
@@ -1032,7 +1033,7 @@ public class DbImpl
         checkArgument(compactionState.outfile == null);
 
         // todo track snapshots
-        compactionState.smallestSnapshot = versions.getLastSequence();
+        compactionState.smallestSnapshot = versions.getLastSequence();  // smallestSnapshot is the largest sequence of version now
 
         // Release mutex while we're actually doing the compaction work
         mutex.unlock();
@@ -1054,12 +1055,12 @@ public class DbImpl
                 }
 
                 InternalKey key = iterator.peek().getKey();
-                if (compactionState.compaction.shouldStopBefore(key) && compactionState.builder != null) {
+                if (compactionState.compaction.shouldStopBefore(key) && compactionState.builder != null) {  // todo what?
                     finishCompactionOutputFile(compactionState);
                 }
 
                 // Handle key/value, add to state, etc.
-                boolean drop = false;
+                boolean drop = false;   // "drop" means if a key/value pair should be added to the sstable file
                 // todo if key doesn't parse (it is corrupted),
                 if (false /*!ParseInternalKey(key, &ikey)*/) {
                     // do not hide error keys

@@ -131,6 +131,8 @@ public class Level0
 
     public boolean someFileOverlapsRange(Slice smallestUserKey, Slice largestUserKey)
     {
+        // rules: A.largest >= B.smallest and A.smallest <= B.largest
+
         InternalKey smallestInternalKey = new InternalKey(smallestUserKey, MAX_SEQUENCE_NUMBER, VALUE);
         int index = findFile(smallestInternalKey);
 

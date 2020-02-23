@@ -169,7 +169,7 @@ public class FileChannelLogWriter
                 type = LogChunkType.MIDDLE;
             }
 
-            // write the chunk
+            // write the chunk to disk
             writeChunk(type, sliceInput.readSlice(fragmentLength));
 
             // we are no longer on the first chunk
@@ -187,7 +187,7 @@ public class FileChannelLogWriter
         checkArgument(slice.length() <= 0xffff, "length %s is larger than two bytes", slice.length());
         checkArgument(blockOffset + HEADER_SIZE <= BLOCK_SIZE);
 
-        // create header
+        // create header (crc, length, type)
         Slice header = newLogRecordHeader(type, slice, slice.length());
 
         // write the header and the payload

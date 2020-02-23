@@ -128,13 +128,17 @@ public class TableBuilder
             assert (userComparator.compare(key, lastKey) > 0) : "key must be greater than last key";
         }
 
-        // If we just wrote a block, we can now add the handle to index block
+        // If we just wrote a block, we can now add the handle to index block.
+        // index format: [ key | offset | size ], the key (shortestSeparator) is greater than or equal to the last key (also max key)
+        // of old block, and is lower than the first key (also min key) of new block.
+        // In fact, this is a lazy strategy, which makes the index entry smaller.
         if (pendingIndexEntry) {
             checkState(dataBlockBuilder.isEmpty(), "Internal error: Table has a pending index entry but data block builder is empty");
 
             Slice shortestSeparator = userComparator.findShortestSeparator(lastKey, key);
 
-            Slice handleEncoding = BlockHandle.writeBlockHandle(pendingHandle);
+            Slice handleEncoding = BlockHandle.writeBlockHandle(pendingHandle); // encode [ offset | size ]
+
             indexBlockBuilder.add(shortestSeparator, handleEncoding);
             pendingIndexEntry = false;
         }
@@ -166,7 +170,7 @@ public class TableBuilder
     private BlockHandle writeBlock(BlockBuilder blockBuilder)
             throws IOException
     {
-        // close the block
+        // close the block ( write the restartPositions and the number of the restartPositions following the actual data in data block )
         Slice raw = blockBuilder.finish();
 
         // attempt to compress the block
@@ -195,7 +199,7 @@ public class TableBuilder
         // create a handle to this block
         BlockHandle blockHandle = new BlockHandle(position, blockContents.length());
 
-        // write data and trailer
+        // write data and trailer ( [ Block | Type | CRC ] )
         position += fileChannel.write(new ByteBuffer[] {blockContents.toByteBuffer(), trailer.toByteBuffer()});
 
         // clean up state

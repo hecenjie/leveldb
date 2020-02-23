@@ -169,13 +169,13 @@ public final class Filename
         String temp = tempFileName(descriptorNumber);
 
         File tempFile = new File(databaseDir, temp);
-        writeStringToFileSync(manifest + "\n", tempFile);
+        writeStringToFileSync(manifest + "\n", tempFile);   // CURRENT file only record the file name of MANIFEST
 
         File to = new File(databaseDir, currentFileName());
         boolean ok = tempFile.renameTo(to);
         if (!ok) {
             tempFile.delete();
-            writeStringToFileSync(manifest + "\n", to);
+            writeStringToFileSync(manifest + "\n", to); // Overwrite the existing CURRENT file
         }
         return ok;
     }

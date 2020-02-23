@@ -53,6 +53,7 @@ public class Version
     // move these mutable fields somewhere else
     private int compactionLevel;
     private double compactionScore;
+
     private FileMetaData fileToCompact;
     private int fileToCompactLevel;
 
@@ -201,6 +202,9 @@ public class Version
         return level;
     }
 
+    /**
+     * @return true if there is overlap in specified level
+     */
     public boolean overlapInLevel(int level, Slice smallestUserKey, Slice largestUserKey)
     {
         checkPositionIndex(level, levels.size(), "Invalid level");

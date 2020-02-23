@@ -79,6 +79,10 @@ public class VersionSet
     private final InternalKeyComparator internalKeyComparator;
 
     private LogWriter descriptorLog;
+
+    // 如果下次进行compaction的是level i，
+    // 则应该选择level i中第一个key大于compactPointers.get(i)的文件，同时会更新compactPointers.get(i)，
+    // 保证下次compaction会从一个新的文件进行。
     private final Map<Integer, InternalKey> compactPointers = new TreeMap<>();
 
     public VersionSet(File databaseDir, TableCache tableCache, InternalKeyComparator internalKeyComparator)
@@ -204,7 +208,7 @@ public class VersionSet
         // TODO(opt): use concatenating iterator for level-0 if there is no overlap
         List<InternalIterator> list = new ArrayList<>();
         for (int which = 0; which < 2; which++) {
-            if (!c.getInputs()[which].isEmpty()) {
+            if (!c.getInputs()[which].isEmpty()) {  // c.getInputs()[0]: levelInputs, c.getInputs()[1]: levelUpInputs
                 if (c.getLevel() + which == 0) {
                     List<FileMetaData> files = c.getInputs()[which];
                     list.add(new Level0Iterator(tableCache, files, internalKeyComparator));
@@ -272,7 +276,7 @@ public class VersionSet
         builder.apply(edit);
         builder.saveTo(version);
 
-        finalizeVersion(version);
+        finalizeVersion(version);   // just set the best level and the best score
 
         boolean createdNewManifest = false;
         try {
@@ -486,6 +490,7 @@ public class VersionSet
 
     public boolean needsCompaction()
     {
+        // Size compaction or Seek compaction
         return current.getCompactionScore() >= 1 || current.getFileToCompact() != null;
     }
 

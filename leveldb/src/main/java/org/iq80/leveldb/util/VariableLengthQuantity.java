@@ -47,6 +47,7 @@ public final class VariableLengthQuantity
 
     public static void writeVariableLengthInt(int value, SliceOutput sliceOutput)
     {
+        // Varint encode
         int highBitMask = 0x80;
         if (value < (1 << 7) && value >= 0) {
             sliceOutput.writeByte(value);

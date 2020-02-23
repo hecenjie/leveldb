@@ -38,7 +38,7 @@ public class Compaction
     private final List<FileMetaData> levelInputs;
     private final List<FileMetaData> levelUpInputs;
     private final List<FileMetaData> grandparents;
-    private final List<FileMetaData>[] inputs;
+    private final List<FileMetaData>[] inputs;  // new List[] {levelInputs, levelUpInputs}
 
     private final long maxOutputFileSize;
     private final VersionEdit edit = new VersionEdit();
@@ -148,6 +148,8 @@ public class Compaction
     // Returns true if the information we have available guarantees that
     // the compaction is producing data in "level+1" for which no data exists
     // in levels greater than "level+1".
+    // In other words, the function returns true if there is not a same key
+    // in levels greater than or equal to "level+2" as the deleted key
     public boolean isBaseLevelForKey(Slice userKey)
     {
         // Maybe use binary search to find right entry instead of linear search?
@@ -170,7 +172,7 @@ public class Compaction
         return true;
     }
 
-    // Returns true iff we should stop building the current output
+    // Returns true if we should stop building the current output
     // before processing "internal_key".
     public boolean shouldStopBefore(InternalKey internalKey)
     {

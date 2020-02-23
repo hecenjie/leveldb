@@ -117,21 +117,21 @@ public class BlockBuilder
         }
         else {
             // restart prefix compression
-            restartPositions.add(block.size());
+            restartPositions.add(block.size()); // preserve the offset
             restartBlockEntryCount = 0;
         }
 
         int nonSharedKeyBytes = key.length() - sharedKeyBytes;
 
-        // write "<shared><non_shared><value_size>"
+        // write "<shared size><non_shared size><value_size>"
         VariableLengthQuantity.writeVariableLengthInt(sharedKeyBytes, block);
         VariableLengthQuantity.writeVariableLengthInt(nonSharedKeyBytes, block);
         VariableLengthQuantity.writeVariableLengthInt(value.length(), block);
 
-        // write non-shared key bytes
+        // write non-shared key
         block.writeBytes(key, sharedKeyBytes, nonSharedKeyBytes);
 
-        // write value bytes
+        // write value
         block.writeBytes(value, 0, value.length());
 
         // update last key
