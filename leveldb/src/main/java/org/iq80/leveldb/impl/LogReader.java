@@ -65,6 +65,7 @@ public class LogReader
 
     /**
      * Scratch buffer in which the next record is assembled.
+     * 记录片段统一收集在 recordScratch 中。
      */
     private final DynamicSliceOutput recordScratch = new DynamicSliceOutput(BLOCK_SIZE);
 
@@ -80,6 +81,7 @@ public class LogReader
 
     /**
      * Current chunk which is sliced from the current block.
+     * Chunk 就是 Fragment 的意思。
      */
     private Slice currentChunk = Slices.EMPTY_SLICE;
 
@@ -156,7 +158,7 @@ public class LogReader
                     recordScratch.reset();
                     prospectiveRecordOffset = physicalRecordOffset;
                     lastRecordOffset = prospectiveRecordOffset;
-                    return currentChunk.copySlice();
+                    return currentChunk.copySlice();    // 因为FULL类型代表一条记录可以整个存在一个Block中，所以可以直接用currentChunk
 
                 case FIRST:
                     if (inFragmentedRecord) {
@@ -165,9 +167,9 @@ public class LogReader
                         recordScratch.reset();
                     }
                     prospectiveRecordOffset = physicalRecordOffset;
-                    recordScratch.writeBytes(currentChunk);
+                    recordScratch.writeBytes(currentChunk); //此时一条记录不能整个存在一个Block中，需要分割成多个fragment，所以先将这个fragment放入recordScratch收集起来
                     inFragmentedRecord = true;
-                    break;
+                    break;  // 是从switch语句中break，不是从while循环中break，这时候是要继续读完整条记录的
 
                 case MIDDLE:
                     if (!inFragmentedRecord) {
@@ -191,7 +193,7 @@ public class LogReader
                     else {
                         recordScratch.writeBytes(currentChunk);
                         lastRecordOffset = prospectiveRecordOffset;
-                        return recordScratch.slice().copySlice();
+                        return recordScratch.slice().copySlice();   // 已经读到最后一个fragment，这些fragment都已经收集在recordScratch中
                     }
                     break;
 
@@ -227,6 +229,7 @@ public class LogReader
 
     /**
      * Return type, or one of the preceding special values
+     * Chunk 就是 Block 中的某个片段（fragment），也可以是整个 Block
      */
     private LogChunkType readNextChunk()
     {
@@ -244,6 +247,7 @@ public class LogReader
 
         // parse header
         int expectedChecksum = currentBlock.readInt();
+        // 这里需注意，这个length并不是整条记录（record）的大小，而是当时写入的片段（fragment）的大小
         int length = currentBlock.readUnsignedByte();
         length = length | currentBlock.readUnsignedByte() << 8;
         byte chunkTypeId = currentBlock.readByte();
@@ -274,7 +278,7 @@ public class LogReader
         // read the chunk
         currentChunk = currentBlock.readBytes(length);
 
-        if (verifyChecksums) {
+        if (verifyChecksums) {  // 因为在预写日志的过程中也是有可能宕机的，因此要对数据做校验和
             int actualChecksum = getChunkChecksum(chunkTypeId, currentChunk);
             if (actualChecksum != expectedChecksum) {
                 // Drop the rest of the buffer since "length" itself may have

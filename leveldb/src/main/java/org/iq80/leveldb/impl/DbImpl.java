@@ -698,7 +698,7 @@ public class DbImpl
                 // Log write
                 Slice record = writeWriteBatch(updates, sequenceBegin);
                 try {
-                    log.addRecord(record, options.sync());  // todo 有个问题：预写日志的过程如果被中断了，会发生什么？
+                    log.addRecord(record, options.sync());
                 }
                 catch (IOException e) {
                     throw Throwables.propagate(e);
@@ -1299,6 +1299,9 @@ public class DbImpl
         }
     }
 
+    /**
+     * 将 Slice 写入到 WriteBatchImpl 中
+     */
     private WriteBatchImpl readWriteBatch(SliceInput record, int updateSize)
             throws IOException
     {
@@ -1328,6 +1331,9 @@ public class DbImpl
         return writeBatch;
     }
 
+    /**
+     * 将 WriteBatchImpl 写入到 Slice 中。
+     */
     private Slice writeWriteBatch(WriteBatchImpl updates, long sequenceBegin)
     {
         Slice record = Slices.allocate(SIZE_OF_LONG + SIZE_OF_INT + updates.getApproximateSize());
